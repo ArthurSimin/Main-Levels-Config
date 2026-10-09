@@ -4,10 +4,7 @@ permissions:
   contents: write
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - '**'
+  workflow_dispatch: # run it manually any time from the Actions tab
 
 jobs:
 
@@ -64,34 +61,24 @@ jobs:
         with:
           name: Build Output
           path: ${{ steps.build.outputs.build-output }}
+          retention-days: 90
 
       - name: "Set up Git repository"
         uses: actions/checkout@v4
 
+      # Always-available download: Releases page -> "Development Release" (tag: nightly).
+      # Every run replaces the .geode file there with the newest build.
       - name: "Development Release"
         uses: ncipollo/release-action@v1
         with:
           name: "Development Release"
           body: |
-           Release of success build for latest commit on `${{ github.head_ref || github.ref_name }}`.
-           The build workflow run for this release goes in [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+           Latest successful manual build of `${{ github.head_ref || github.ref_name }}`.
+           Built by workflow run [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           tag: "nightly"
+          commit: ${{ github.sha }}
           prerelease: true
           allowUpdates: true
+          replacesArtifacts: true
           artifactErrorsFailBuild: true
-          artifacts: "${{steps.build.outputs.build-output}}/*"
-
-      - name: "Get mod properties"
-        id: json_properties
-        uses: ActionsTools/read-json-action@main
-        with:
-          file_path: "mod.json"
-
-      - name: "Try Release Version"
-        uses: ncipollo/release-action@v1
-        with:
-          generateReleaseNotes: true
-          tag: "${{steps.json_properties.outputs.version}}"
-          artifacts: "${{steps.build.outputs.build-output}}/*"
-          artifactErrorsFailBuild: true
-          allowUpdates: false
+          artifacts: "${{ steps.build.outputs.build-output }}/*"
